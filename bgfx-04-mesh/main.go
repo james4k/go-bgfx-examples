@@ -54,18 +54,6 @@ func main() {
 		0,
 	)
 
-	/*
-		var vd bgfx.VertexDecl
-		vd.Begin()
-		vd.Add(bgfx.AttribPosition, 3, bgfx.AttribTypeFloat, false, false)
-		vd.Add(bgfx.AttribColor0, 4, bgfx.AttribTypeUint8, true, false)
-		vd.End()
-		vb := bgfx.CreateVertexBuffer(vertices, vd)
-		defer bgfx.DestroyVertexBuffer(vb)
-		ib := bgfx.CreateIndexBuffer(indices)
-		defer bgfx.DestroyIndexBuffer(ib)
-	*/
-
 	uTime := bgfx.CreateUniform("u_time", bgfx.Uniform1f, 1)
 	defer bgfx.DestroyUniform(uTime)
 
