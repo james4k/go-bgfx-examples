@@ -3,15 +3,12 @@ package main
 import (
 	"io/ioutil"
 	"log"
-	"os"
 	"path/filepath"
-	"runtime"
 
-	glfw "github.com/go-gl/glfw3"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
 	"github.com/james4k/go-bgfx-examples/assets"
-	"github.com/james4k/go-bgfx/window/bgfx_glfw"
+	"github.com/james4k/go-bgfx-examples/example"
 )
 
 type PosColorVertex struct {
@@ -46,31 +43,12 @@ var indices = []uint16{
 }
 
 func main() {
-	runtime.LockOSThread()
-	var (
-		width  = 1280
-		height = 720
-		title  = filepath.Base(os.Args[0])
-	)
-	glfw.SetErrorCallback(func(err glfw.ErrorCode, desc string) {
-		log.Printf("glfw: %s\n", desc)
-	})
-	if !glfw.Init() {
-		os.Exit(1)
-	}
-	defer glfw.Terminate()
-	// for now, fized size window. bgfx currently breaks glfw events
-	// because it overrides the NSWindow's content view
-	glfw.WindowHint(glfw.Resizable, 0)
-	window, err := glfw.CreateWindow(width, height, title, nil, nil)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	bgfx_glfw.SetWindow(window)
+	app := example.Open()
+	defer app.Close()
 	bgfx.Init()
 	defer bgfx.Shutdown()
 
-	bgfx.Reset(width, height, 0)
+	bgfx.Reset(app.Width, app.Height, 0)
 	bgfx.SetDebug(bgfx.DebugText)
 	bgfx.SetViewClear(
 		0,
@@ -96,15 +74,12 @@ func main() {
 	defer bgfx.DestroyProgram(prog)
 
 	var (
-		last, avgdt, totaldt float32
-		nframes              int
-		dim                  = 12
+		avgdt, totaldt float32
+		nframes        int
+		dim            = 12
 	)
-	for !window.ShouldClose() {
-		now := float32(glfw.GetTime())
-		dt := now - last
-		last = now
-
+	for app.Continue() {
+		dt := app.DeltaTime
 		if totaldt >= 1.0 {
 			avgdt = totaldt / float32(nframes)
 			if avgdt < 1.0/65 {
@@ -118,7 +93,6 @@ func main() {
 		totaldt += dt
 		nframes++
 
-		width, height = window.GetSize()
 		var (
 			eye = mgl32.Vec3{0, 0, -35.0}
 			at  = mgl32.Vec3{0, 0, 0}
@@ -127,13 +101,13 @@ func main() {
 		view := [16]float32(mgl32.LookAtV(eye, at, up))
 		proj := [16]float32(mgl32.Perspective(
 			mgl32.DegToRad(60.0),
-			float32(width)/float32(height),
+			float32(app.Width)/float32(app.Height),
 			0.1, 100.0,
 		))
 		bgfx.SetViewTransform(0, view, proj)
-		bgfx.SetViewRect(0, 0, 0, width, height)
+		bgfx.SetViewRect(0, 0, 0, app.Width, app.Height)
 		bgfx.DebugTextClear()
-		bgfx.DebugTextPrintf(0, 1, 0x4f, title)
+		bgfx.DebugTextPrintf(0, 1, 0x4f, app.Title)
 		bgfx.DebugTextPrintf(0, 2, 0x6f, "Description: Draw stress, maximizing number of draw calls.")
 		bgfx.DebugTextPrintf(0, 3, 0x0f, "Frame: % 7.3f[ms]", dt*1000.0)
 		bgfx.DebugTextPrintf(0, 5, 0x0f, "Draw calls: %d", dim*dim*dim)
@@ -150,9 +124,9 @@ func main() {
 		for z := 0; z < dim; z++ {
 			for y := 0; y < dim; y++ {
 				for x := 0; x < dim; x++ {
-					mtx := mgl32.HomogRotate3DX(now + float32(x)*0.21)
-					mtx = mtx.Mul4(mgl32.HomogRotate3DY(now + float32(y)*0.37))
-					mtx = mtx.Mul4(mgl32.HomogRotate3DY(now + float32(z)*0.13))
+					mtx := mgl32.HomogRotate3DX(app.Time + float32(x)*0.21)
+					mtx = mtx.Mul4(mgl32.HomogRotate3DY(app.Time + float32(y)*0.37))
+					mtx = mtx.Mul4(mgl32.HomogRotate3DY(app.Time + float32(z)*0.13))
 					mtx = mtx.Mul4(mgl32.Scale3D(0.25, 0.25, 0.25))
 					mtx[12] = pos[0] + float32(x)*step
 					mtx[13] = pos[1] + float32(y)*step
@@ -169,7 +143,6 @@ func main() {
 		}
 
 		bgfx.Frame()
-		glfw.PollEvents()
 	}
 }
 

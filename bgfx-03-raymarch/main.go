@@ -3,15 +3,13 @@ package main
 import (
 	"io/ioutil"
 	"log"
-	"os"
 	"path/filepath"
 	"runtime"
 
-	glfw "github.com/go-gl/glfw3"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
 	"github.com/james4k/go-bgfx-examples/assets"
-	"github.com/james4k/go-bgfx/window/bgfx_glfw"
+	"github.com/james4k/go-bgfx-examples/example"
 )
 
 type PosColorTexcoord0Vertex struct {
@@ -89,30 +87,12 @@ func init() {
 }
 
 func main() {
-	var (
-		width  = 1280
-		height = 720
-		title  = filepath.Base(os.Args[0])
-	)
-	glfw.SetErrorCallback(func(err glfw.ErrorCode, desc string) {
-		log.Printf("glfw: %s\n", desc)
-	})
-	if !glfw.Init() {
-		os.Exit(1)
-	}
-	defer glfw.Terminate()
-	// for now, fized size window. bgfx currently breaks glfw events
-	// because it overrides the NSWindow's content view
-	glfw.WindowHint(glfw.Resizable, 0)
-	window, err := glfw.CreateWindow(width, height, title, nil, nil)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	bgfx_glfw.SetWindow(window)
+	app := example.Open()
+	defer app.Close()
 	bgfx.Init()
 	defer bgfx.Shutdown()
 
-	bgfx.Reset(width, height, bgfx.ResetVSync)
+	bgfx.Reset(app.Width, app.Height, bgfx.ResetVSync)
 	bgfx.SetDebug(bgfx.DebugText)
 	bgfx.SetViewClear(
 		0,
@@ -121,7 +101,7 @@ func main() {
 		1.0,
 		0,
 	)
-	bgfx.SetViewRect(0, 0, 0, width, height)
+	bgfx.SetViewRect(0, 0, 0, app.Width, app.Height)
 	bgfx.Submit(0)
 
 	var vd bgfx.VertexDecl
@@ -144,17 +124,11 @@ func main() {
 	}
 	defer bgfx.DestroyProgram(prog)
 
-	var last float32
-	for !window.ShouldClose() {
-		now := float32(glfw.GetTime())
-		delta := now - last
-		last = now
-		width, height = window.GetSize()
-
+	for app.Continue() {
 		bgfx.DebugTextClear()
-		bgfx.DebugTextPrintf(0, 1, 0x4f, title)
+		bgfx.DebugTextPrintf(0, 1, 0x4f, app.Title)
 		bgfx.DebugTextPrintf(0, 2, 0x6f, "Description: Updating shader uniforms.")
-		bgfx.DebugTextPrintf(0, 3, 0x0f, "Frame: % 7.3f[ms]", delta*1000.0)
+		bgfx.DebugTextPrintf(0, 3, 0x0f, "Frame: % 7.3f[ms]", app.DeltaTime*1000.0)
 
 		var (
 			eye = mgl32.Vec3{0, 0, -15.0}
@@ -164,33 +138,32 @@ func main() {
 		view := mgl32.LookAtV(eye, at, up)
 		proj := mgl32.Perspective(
 			mgl32.DegToRad(60.0),
-			float32(width)/float32(height),
+			float32(app.Width)/float32(app.Height),
 			0.1, 100.0,
 		)
-		bgfx.SetViewRect(0, 0, 0, width, height)
+		bgfx.SetViewRect(0, 0, 0, app.Width, app.Height)
 		bgfx.SetViewTransform(0, [16]float32(view), [16]float32(proj))
 		bgfx.Submit(0)
 
-		ortho := mgl32.Ortho(0, float32(width), float32(height), 0, 0, 100)
-		bgfx.SetViewRect(1, 0, 0, width, height)
+		ortho := mgl32.Ortho(0, float32(app.Width), float32(app.Height), 0, 0, 100)
+		bgfx.SetViewRect(1, 0, 0, app.Width, app.Height)
 		bgfx.SetViewTransform(1, [16]float32(mgl32.Ident4()), [16]float32(ortho))
 
 		viewProj := proj.Mul4(view)
-		mtx := mgl32.HomogRotate3DX(now).Mul4(mgl32.HomogRotate3DY(now * 0.37))
+		mtx := mgl32.HomogRotate3DX(app.Time).Mul4(mgl32.HomogRotate3DY(app.Time * 0.37))
 		invMtx := mtx.Inv()
 		lightDirModel := mgl32.Vec3{-0.4, -0.5, -1.0}
 		lightDirModelN := lightDirModel.Normalize()
 		lightDir := invMtx.Mul4x1(lightDirModelN.Vec4(0))
 		invMvp := viewProj.Mul4(mtx).Inv()
 
-		bgfx.SetUniform(uTime, &now, 1)
+		bgfx.SetUniform(uTime, &app.Time, 1)
 		bgfx.SetUniform(uLightDir, &lightDir, 1)
 		bgfx.SetUniform(uMtx, &invMvp, 1)
 
-		renderScreenSpaceQuad(1, prog, vd, 0, 0, float32(width), float32(height))
+		renderScreenSpaceQuad(1, prog, vd, 0, 0, float32(app.Width), float32(app.Height))
 
 		bgfx.Frame()
-		glfw.PollEvents()
 	}
 }
 

@@ -5,15 +5,12 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
-	"os"
 	"path/filepath"
-	"runtime"
 
-	glfw "github.com/go-gl/glfw3"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
 	"github.com/james4k/go-bgfx-examples/assets"
-	"github.com/james4k/go-bgfx/window/bgfx_glfw"
+	"github.com/james4k/go-bgfx-examples/example"
 )
 
 type PosNormalTangentTexcoordVertex struct {
@@ -76,31 +73,12 @@ var indices = []uint16{
 }
 
 func main() {
-	runtime.LockOSThread()
-	var (
-		width  = 1280
-		height = 720
-		title  = filepath.Base(os.Args[0])
-	)
-	glfw.SetErrorCallback(func(err glfw.ErrorCode, desc string) {
-		log.Printf("glfw: %s\n", desc)
-	})
-	if !glfw.Init() {
-		os.Exit(1)
-	}
-	defer glfw.Terminate()
-	// for now, fized size window. bgfx currently breaks glfw events
-	// because it overrides the NSWindow's content view
-	glfw.WindowHint(glfw.Resizable, 0)
-	window, err := glfw.CreateWindow(width, height, title, nil, nil)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	bgfx_glfw.SetWindow(window)
+	app := example.Open()
+	defer app.Close()
 	bgfx.Init()
 	defer bgfx.Shutdown()
 
-	bgfx.Reset(width, height, bgfx.ResetVSync)
+	bgfx.Reset(app.Width, app.Height, bgfx.ResetVSync)
 	bgfx.SetDebug(bgfx.DebugText)
 	bgfx.SetViewClear(
 		0,
@@ -151,12 +129,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	var last float32
-	for !window.ShouldClose() {
-		now := float32(glfw.GetTime())
-		delta := now - last
-		last = now
-		width, height = window.GetSize()
+	for app.Continue() {
 		var (
 			eye = mgl32.Vec3{0, 0, -7.0}
 			at  = mgl32.Vec3{0, 0, 0}
@@ -165,23 +138,23 @@ func main() {
 		view := [16]float32(mgl32.LookAtV(eye, at, up))
 		proj := [16]float32(mgl32.Perspective(
 			mgl32.DegToRad(60.0),
-			float32(width)/float32(height),
+			float32(app.Width)/float32(app.Height),
 			0.1, 100.0,
 		))
 		bgfx.SetViewTransform(0, view, proj)
-		bgfx.SetViewRect(0, 0, 0, width, height)
+		bgfx.SetViewRect(0, 0, 0, app.Width, app.Height)
 		bgfx.DebugTextClear()
-		bgfx.DebugTextPrintf(0, 1, 0x4f, title)
+		bgfx.DebugTextPrintf(0, 1, 0x4f, app.Title)
 		bgfx.DebugTextPrintf(0, 2, 0x6f, "Description: Loading textures.")
-		bgfx.DebugTextPrintf(0, 3, 0x0f, "Frame: % 7.3f[ms]", delta*1000.0)
+		bgfx.DebugTextPrintf(0, 3, 0x0f, "Frame: % 7.3f[ms]", app.DeltaTime*1000.0)
 		bgfx.Submit(0)
 
 		const halfPi = math.Pi / 2
 		var lightPosRadius [4][4]float32
 		for i := 0; i < numLights; i++ {
 			fi := float32(i)
-			lightPosRadius[i][0] = float32(math.Sin(float64(now*(0.1+fi*0.17)+fi*halfPi*1.37)) * 3.0)
-			lightPosRadius[i][1] = float32(math.Cos(float64(now*(0.2+fi*0.29)+fi*halfPi*1.49)) * 3.0)
+			lightPosRadius[i][0] = float32(math.Sin(float64(app.Time*(0.1+fi*0.17)+fi*halfPi*1.37)) * 3.0)
+			lightPosRadius[i][1] = float32(math.Cos(float64(app.Time*(0.2+fi*0.29)+fi*halfPi*1.49)) * 3.0)
 			lightPosRadius[i][2] = -2.5
 			lightPosRadius[i][3] = 3.0
 		}
@@ -201,8 +174,8 @@ func main() {
 				const instanceStride = 64
 				idb := bgfx.AllocInstanceDataBuffer(numInstances, instanceStride)
 				for x := 0; x < 3; x++ {
-					mtx := mgl32.HomogRotate3DX(now*0.023 + float32(x)*0.21)
-					mtx = mtx.Mul4(mgl32.HomogRotate3DY(now*0.03 + float32(y)*0.37))
+					mtx := mgl32.HomogRotate3DX(app.Time*0.023 + float32(x)*0.21)
+					mtx = mtx.Mul4(mgl32.HomogRotate3DY(app.Time*0.03 + float32(y)*0.37))
 					mtx[12] = -3 + float32(x)*3
 					mtx[13] = -3 + float32(y)*3
 					mtx[14] = 0
@@ -220,8 +193,8 @@ func main() {
 		} else {
 			for y := 0; y < 3; y++ {
 				for x := 0; x < 3; x++ {
-					mtx := mgl32.HomogRotate3DX(now*0.023 + float32(x)*0.21)
-					mtx = mtx.Mul4(mgl32.HomogRotate3DY(now*0.03 + float32(y)*0.37))
+					mtx := mgl32.HomogRotate3DX(app.Time*0.023 + float32(x)*0.21)
+					mtx = mtx.Mul4(mgl32.HomogRotate3DY(app.Time*0.03 + float32(y)*0.37))
 					mtx[12] = -3 + float32(x)*3
 					mtx[13] = -3 + float32(y)*3
 					mtx[14] = 0
@@ -238,7 +211,6 @@ func main() {
 			}
 		}
 		bgfx.Frame()
-		glfw.PollEvents()
 	}
 }
 
@@ -277,7 +249,8 @@ func loadTexture(name string) (bgfx.Texture, error) {
 	if err != nil {
 		return bgfx.Texture{}, err
 	}
-	return bgfx.CreateTexture(data, 0, 0), nil
+	tex, _ := bgfx.CreateTexture(data, 0, 0)
+	return tex, nil
 }
 
 func calcTangents(vertices interface{}, numVertices int, decl bgfx.VertexDecl, indices []uint16) {

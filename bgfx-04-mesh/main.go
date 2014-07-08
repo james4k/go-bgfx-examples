@@ -6,45 +6,22 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 
-	glfw "github.com/go-gl/glfw3"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
 	"github.com/james4k/go-bgfx-examples/assets"
-	"github.com/james4k/go-bgfx/window/bgfx_glfw"
+	"github.com/james4k/go-bgfx-examples/example"
 )
 
 func main() {
-	runtime.LockOSThread()
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	var (
-		width  = 1280
-		height = 720
-		title  = filepath.Base(os.Args[0])
-	)
-	glfw.SetErrorCallback(func(err glfw.ErrorCode, desc string) {
-		log.Printf("glfw: %s\n", desc)
-	})
-	if !glfw.Init() {
-		os.Exit(1)
-	}
-	defer glfw.Terminate()
-	// for now, fized size window. bgfx currently breaks glfw events
-	// because it overrides the NSWindow's content view
-	glfw.WindowHint(glfw.Resizable, 0)
-	window, err := glfw.CreateWindow(width, height, title, nil, nil)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	bgfx_glfw.SetWindow(window)
+	app := example.Open()
+	defer app.Close()
 	bgfx.Init()
 	defer bgfx.Shutdown()
 
-	bgfx.Reset(width, height, bgfx.ResetVSync)
+	bgfx.Reset(app.Width, app.Height, bgfx.ResetVSync)
 	bgfx.SetDebug(bgfx.DebugText)
 	bgfx.SetViewClear(
 		0,
@@ -66,20 +43,15 @@ func main() {
 	mesh := loadMesh("bunny")
 	defer unloadMesh(mesh)
 
-	var last float32
-	for !window.ShouldClose() {
-		now := float32(glfw.GetTime())
-		delta := now - last
-		last = now
-		bgfx.SetUniform(uTime, &now, 1)
-
-		width, height = window.GetSize()
-		bgfx.SetViewRect(0, 0, 0, width, height)
+	for app.Continue() {
+		bgfx.SetViewRect(0, 0, 0, app.Width, app.Height)
 		bgfx.DebugTextClear()
-		bgfx.DebugTextPrintf(0, 1, 0x4f, title)
+		bgfx.DebugTextPrintf(0, 1, 0x4f, app.Title)
 		bgfx.DebugTextPrintf(0, 2, 0x6f, "Description: Loading meshes.")
-		bgfx.DebugTextPrintf(0, 3, 0x0f, "Frame: % 7.3f[ms]", delta*1000.0)
+		bgfx.DebugTextPrintf(0, 3, 0x0f, "Frame: % 7.3f[ms]", app.DeltaTime*1000.0)
 		bgfx.Submit(0)
+
+		bgfx.SetUniform(uTime, &app.Time, 1)
 
 		var (
 			eye = mgl32.Vec3{0, 1, -2.5}
@@ -89,16 +61,15 @@ func main() {
 		view := [16]float32(mgl32.LookAtV(eye, at, up))
 		proj := [16]float32(mgl32.Perspective(
 			mgl32.DegToRad(60.0),
-			float32(width)/float32(height),
+			float32(app.Width)/float32(app.Height),
 			0.1, 100,
 		))
 		bgfx.SetViewTransform(0, view, proj)
 
-		mtx := mgl32.HomogRotate3DY(now * 0.37)
+		mtx := mgl32.HomogRotate3DY(app.Time * 0.37)
 		submitMesh(mesh, 0, prog, mtx)
 
 		bgfx.Frame()
-		glfw.PollEvents()
 	}
 }
 

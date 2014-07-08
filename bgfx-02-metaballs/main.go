@@ -1,16 +1,11 @@
 package main
 
 import (
-	"log"
 	"math"
-	"os"
-	"path/filepath"
-	"runtime"
 
-	glfw "github.com/go-gl/glfw3"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
-	"github.com/james4k/go-bgfx/window/bgfx_glfw"
+	"github.com/james4k/go-bgfx-examples/example"
 )
 
 type PosNormalColorVertex struct {
@@ -20,31 +15,12 @@ type PosNormalColorVertex struct {
 }
 
 func main() {
-	runtime.LockOSThread()
-	var (
-		width  = 1280
-		height = 720
-		title  = filepath.Base(os.Args[0])
-	)
-	glfw.SetErrorCallback(func(err glfw.ErrorCode, desc string) {
-		log.Printf("glfw: %s\n", desc)
-	})
-	if !glfw.Init() {
-		os.Exit(1)
-	}
-	defer glfw.Terminate()
-	// for now, fized size window. bgfx currently breaks glfw events
-	// because it overrides the NSWindow's content view
-	glfw.WindowHint(glfw.Resizable, 0)
-	window, err := glfw.CreateWindow(width, height, title, nil, nil)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	bgfx_glfw.SetWindow(window)
+	app := example.Open()
+	defer app.Close()
 	bgfx.Init()
 	defer bgfx.Shutdown()
 
-	bgfx.Reset(width, height, bgfx.ResetVSync)
+	bgfx.Reset(app.Width, app.Height, bgfx.ResetVSync)
 	bgfx.SetDebug(bgfx.DebugText)
 	bgfx.SetViewClear(
 		0,
@@ -63,9 +39,6 @@ func main() {
 	vsh := bgfx.CreateShader(vs_metaballs_glsl)
 	fsh := bgfx.CreateShader(fs_metaballs_glsl)
 	prog := bgfx.CreateProgram(vsh, fsh, true)
-	if err != nil {
-		log.Fatalln(err)
-	}
 	defer bgfx.DestroyProgram(prog)
 
 	const dim = 32
@@ -74,13 +47,7 @@ func main() {
 	const invdim = 1.0 / (dim - 1)
 	var grid [dim * dim * dim]cell
 
-	var last float32
-	nowOffset := glfw.GetTime()
-	for !window.ShouldClose() {
-		now := float32(glfw.GetTime() - nowOffset)
-		dt := now - last
-		last = now
-		width, height = window.GetSize()
+	for app.Continue() {
 		var (
 			eye = mgl32.Vec3{0, 0, -50.0}
 			at  = mgl32.Vec3{0, 0, 0}
@@ -89,11 +56,11 @@ func main() {
 		view := [16]float32(mgl32.LookAtV(eye, at, up))
 		proj := [16]float32(mgl32.Perspective(
 			mgl32.DegToRad(60.0),
-			float32(width)/float32(height),
+			float32(app.Width)/float32(app.Height),
 			0.1, 100.0,
 		))
 		bgfx.SetViewTransform(0, view, proj)
-		bgfx.SetViewRect(0, 0, 0, width, height)
+		bgfx.SetViewRect(0, 0, 0, app.Width, app.Height)
 		bgfx.Submit(0)
 
 		// 32k vertices
@@ -105,14 +72,14 @@ func main() {
 		var spheres [numSpheres][4]float32
 		for i := 0; i < numSpheres; i++ {
 			x := float64(i)
-			t := float64(now)
+			t := float64(app.Time)
 			spheres[i][0] = float32(math.Sin(t*(x*0.21)+x*0.37) * (dim*0.5 - 8.0))
 			spheres[i][1] = float32(math.Sin(t*(x*0.37)+x*0.67) * (dim*0.5 - 8.0))
 			spheres[i][2] = float32(math.Cos(t*(x*0.11)+x*0.13) * (dim*0.5 - 8.0))
 			spheres[i][3] = 1.0 / (2.0 + float32(math.Sin(t*(x*0.13))*0.5+0.5)*2.0)
 		}
 
-		profUpdate := glfw.GetTime()
+		profUpdate := app.HighFreqTime()
 		for z := 0; z < dim; z++ {
 			fz := float32(z)
 			for y := 0; y < dim; y++ {
@@ -141,9 +108,9 @@ func main() {
 				}
 			}
 		}
-		profUpdate = glfw.GetTime() - profUpdate
+		profUpdate = app.HighFreqTime() - profUpdate
 
-		profNormal := glfw.GetTime()
+		profNormal := app.HighFreqTime()
 		for z := 1; z < dim-1; z++ {
 			for y := 1; y < dim-1; y++ {
 				offset := (z*dim + y) * dim
@@ -157,9 +124,9 @@ func main() {
 				}
 			}
 		}
-		profNormal = glfw.GetTime() - profNormal
+		profNormal = app.HighFreqTime() - profNormal
 
-		profTriangulate := glfw.GetTime()
+		profTriangulate := app.HighFreqTime()
 		numVertices := 0
 		for z := 0; z < dim-1 && numVertices+12 < maxVertices; z++ {
 			var (
@@ -193,27 +160,26 @@ func main() {
 				}
 			}
 		}
-		profTriangulate = glfw.GetTime() - profTriangulate
+		profTriangulate = app.HighFreqTime() - profTriangulate
 
 		bgfx.DebugTextClear()
-		bgfx.DebugTextPrintf(0, 1, 0x4f, title)
+		bgfx.DebugTextPrintf(0, 1, 0x4f, app.Title)
 		bgfx.DebugTextPrintf(0, 2, 0x6f, "Description: Rendering with transient buffers and embedded shaders.")
 		bgfx.DebugTextPrintf(0, 4, 0x0f, "    Vertices: %d (%.2f%%)", numVertices, float32(numVertices*100)/maxVertices)
 		bgfx.DebugTextPrintf(0, 5, 0x0f, "      Update: % 7.3f[ms]", profUpdate*1000.0)
 		bgfx.DebugTextPrintf(0, 6, 0x0f, "Calc normals: % 7.3f[ms]", profNormal*1000.0)
 		bgfx.DebugTextPrintf(0, 7, 0x0f, " Triangulate: % 7.3f[ms]", profTriangulate*1000.0)
-		bgfx.DebugTextPrintf(0, 8, 0x0f, "       Frame: % 7.3f[ms]", dt*1000.0)
+		bgfx.DebugTextPrintf(0, 8, 0x0f, "       Frame: % 7.3f[ms]", app.DeltaTime*1000.0)
 
 		bgfx.DebugTextPrintf(0, 10, 0x1f, "BUG: looks like an error with the normals/colors")
 
-		mtx := mgl32.HomogRotate3DX(now * 0.67)
-		mtx = mtx.Mul4(mgl32.HomogRotate3DY(now))
+		mtx := mgl32.HomogRotate3DX(app.Time * 0.67)
+		mtx = mtx.Mul4(mgl32.HomogRotate3DY(app.Time))
 		bgfx.SetTransform([16]float32(mtx))
 		bgfx.SetProgram(prog)
 		bgfx.SetTransientVertexBuffer(tvb, 0, numVertices)
 		bgfx.Submit(0)
 
 		bgfx.Frame()
-		glfw.PollEvents()
 	}
 }

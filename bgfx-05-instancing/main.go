@@ -5,15 +5,12 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
-	"os"
 	"path/filepath"
-	"runtime"
 
-	glfw "github.com/go-gl/glfw3"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
 	"github.com/james4k/go-bgfx-examples/assets"
-	"github.com/james4k/go-bgfx/window/bgfx_glfw"
+	"github.com/james4k/go-bgfx-examples/example"
 )
 
 type PosColorVertex struct {
@@ -48,31 +45,12 @@ var indices = []uint16{
 }
 
 func main() {
-	runtime.LockOSThread()
-	var (
-		width  = 1280
-		height = 720
-		title  = filepath.Base(os.Args[0])
-	)
-	glfw.SetErrorCallback(func(err glfw.ErrorCode, desc string) {
-		log.Printf("glfw: %s\n", desc)
-	})
-	if !glfw.Init() {
-		os.Exit(1)
-	}
-	defer glfw.Terminate()
-	// for now, fized size window. bgfx currently breaks glfw events
-	// because it overrides the NSWindow's content view
-	glfw.WindowHint(glfw.Resizable, 0)
-	window, err := glfw.CreateWindow(width, height, title, nil, nil)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	bgfx_glfw.SetWindow(window)
+	app := example.Open()
+	defer app.Close()
 	bgfx.Init()
 	defer bgfx.Shutdown()
 
-	bgfx.Reset(width, height, bgfx.ResetVSync)
+	bgfx.Reset(app.Width, app.Height, bgfx.ResetVSync)
 	bgfx.SetDebug(bgfx.DebugText)
 	bgfx.SetViewClear(
 		0,
@@ -99,13 +77,7 @@ func main() {
 	}
 	defer bgfx.DestroyProgram(prog)
 
-	var last float32
-	for !window.ShouldClose() {
-		now64 := glfw.GetTime()
-		now := float32(now64)
-		delta := now - last
-		last = now
-		width, height = window.GetSize()
+	for app.Continue() {
 		var (
 			eye = mgl32.Vec3{0, 0, -35.0}
 			at  = mgl32.Vec3{0, 0, 0}
@@ -114,42 +86,42 @@ func main() {
 		view := [16]float32(mgl32.LookAtV(eye, at, up))
 		proj := [16]float32(mgl32.Perspective(
 			mgl32.DegToRad(60),
-			float32(width)/float32(height),
+			float32(app.Width)/float32(app.Height),
 			0.1, 100.0,
 		))
 		bgfx.SetViewTransform(0, view, proj)
-		bgfx.SetViewRect(0, 0, 0, width, height)
+		bgfx.SetViewRect(0, 0, 0, app.Width, app.Height)
 		bgfx.DebugTextClear()
-		bgfx.DebugTextPrintf(0, 1, 0x4f, title)
+		bgfx.DebugTextPrintf(0, 1, 0x4f, app.Title)
 		bgfx.DebugTextPrintf(0, 2, 0x6f, "Description: Geometry instancing.")
-		bgfx.DebugTextPrintf(0, 3, 0x0f, "Frame: % 7.3f[ms]", delta*1000.0)
+		bgfx.DebugTextPrintf(0, 3, 0x0f, "Frame: % 7.3f[ms]", app.DeltaTime*1000.0)
 		bgfx.Submit(0)
 
 		if caps.Supported&bgfx.CapsInstancing == 0 {
 			color := uint8(0x01)
-			if uint32(now*2)&1 != 0 {
+			if uint32(app.Time*2)&1 != 0 {
 				color = 0x1f
 			}
 			bgfx.DebugTextPrintf(0, 5, color, " Instancing is not supported by GPU. ")
 			bgfx.Frame()
-			glfw.PollEvents()
 			continue
 		}
 
 		const stride = 80
 		idb := bgfx.AllocInstanceDataBuffer(11*11, stride)
 		// Submit 11x11 cubes
+		time64 := float64(app.Time)
 		for y := 0; y < 11; y++ {
 			for x := 0; x < 11; x++ {
-				mtx := mgl32.HomogRotate3DX(now + float32(x)*0.21)
-				mtx = mtx.Mul4(mgl32.HomogRotate3DY(now + float32(y)*0.37))
+				mtx := mgl32.HomogRotate3DX(app.Time + float32(x)*0.21)
+				mtx = mtx.Mul4(mgl32.HomogRotate3DY(app.Time + float32(y)*0.37))
 				mtx[12] = -15 + float32(x)*3
 				mtx[13] = -15 + float32(y)*3
 				mtx[14] = 0
 				color := [4]float32{
-					float32(math.Sin(now64+float64(x)/11.0)*0.5 + 0.5),
-					float32(math.Cos(now64+float64(y)/11.0)*0.5 + 0.5),
-					float32(math.Sin(now64*3.0)*0.5 + 0.5),
+					float32(math.Sin(time64+float64(x)/11.0)*0.5 + 0.5),
+					float32(math.Cos(time64+float64(y)/11.0)*0.5 + 0.5),
+					float32(math.Sin(time64*3.0)*0.5 + 0.5),
 					1.0,
 				}
 				binary.Write(&idb, binary.LittleEndian, mtx)
@@ -165,7 +137,6 @@ func main() {
 		bgfx.Submit(0)
 
 		bgfx.Frame()
-		glfw.PollEvents()
 	}
 }
 
