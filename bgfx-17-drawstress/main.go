@@ -1,9 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
-	"path/filepath"
 
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
@@ -67,7 +65,7 @@ func main() {
 	defer bgfx.DestroyVertexBuffer(vb)
 	ib := bgfx.CreateIndexBuffer(indices)
 	defer bgfx.DestroyIndexBuffer(ib)
-	prog, err := loadProgram("vs_cubes", "fs_cubes")
+	prog, err := assets.LoadProgram("vs_cubes", "fs_cubes")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -144,29 +142,4 @@ func main() {
 
 		bgfx.Frame()
 	}
-}
-
-func loadProgram(vsh, fsh string) (bgfx.Program, error) {
-	v, err := loadShader(vsh)
-	if err != nil {
-		return bgfx.Program{}, err
-	}
-	f, err := loadShader(fsh)
-	if err != nil {
-		return bgfx.Program{}, err
-	}
-	return bgfx.CreateProgram(v, f, true), nil
-}
-
-func loadShader(name string) (bgfx.Shader, error) {
-	f, err := assets.Open(filepath.Join("shaders/glsl", name+".bin"))
-	if err != nil {
-		return bgfx.Shader{}, err
-	}
-	defer f.Close()
-	data, err := ioutil.ReadAll(f)
-	if err != nil {
-		return bgfx.Shader{}, err
-	}
-	return bgfx.CreateShader(data), nil
 }

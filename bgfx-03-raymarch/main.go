@@ -1,9 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
-	"path/filepath"
 	"runtime"
 
 	"github.com/go-gl/mathgl/mgl32"
@@ -118,7 +116,7 @@ func main() {
 	defer bgfx.DestroyUniform(uMtx)
 	defer bgfx.DestroyUniform(uLightDir)
 
-	prog, err := loadProgram("vs_raymarching", "fs_raymarching")
+	prog, err := assets.LoadProgram("vs_raymarching", "fs_raymarching")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -165,29 +163,4 @@ func main() {
 
 		bgfx.Frame()
 	}
-}
-
-func loadProgram(vsh, fsh string) (bgfx.Program, error) {
-	v, err := loadShader(vsh)
-	if err != nil {
-		return bgfx.Program{}, err
-	}
-	f, err := loadShader(fsh)
-	if err != nil {
-		return bgfx.Program{}, err
-	}
-	return bgfx.CreateProgram(v, f, true), nil
-}
-
-func loadShader(name string) (bgfx.Shader, error) {
-	f, err := assets.Open(filepath.Join("shaders/glsl", name+".bin"))
-	if err != nil {
-		return bgfx.Shader{}, err
-	}
-	defer f.Close()
-	data, err := ioutil.ReadAll(f)
-	if err != nil {
-		return bgfx.Shader{}, err
-	}
-	return bgfx.CreateShader(data), nil
 }

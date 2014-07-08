@@ -1,7 +1,7 @@
 /*
 Package example is used by all of the go-bgfx-examples as a basic
-framework for windowing, user input, and loading graphical resources.
-The file formats used are based on the formats used by the original bgfx
+framework for windowing, user input, and graphical utilities. The file
+formats used are based on the formats used by the original bgfx
 examples.
 */
 package example
@@ -79,11 +79,11 @@ func (a *Application) init() {
 }
 
 func (a *Application) Continue() bool {
+	glfw.PollEvents()
 	if a.window.ShouldClose() {
 		return false
 	}
 	a.update()
-	glfw.PollEvents()
 	return true
 }
 
