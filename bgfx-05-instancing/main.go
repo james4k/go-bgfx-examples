@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/binary"
-	"log"
 	"math"
 
 	"github.com/go-gl/mathgl/mgl32"
@@ -58,8 +57,6 @@ func main() {
 		0,
 	)
 
-	caps := bgfx.Caps()
-
 	var vd bgfx.VertexDecl
 	vd.Begin()
 	vd.Add(bgfx.AttribPosition, 3, bgfx.AttribTypeFloat, false, false)
@@ -69,12 +66,10 @@ func main() {
 	defer bgfx.DestroyVertexBuffer(vb)
 	ib := bgfx.CreateIndexBuffer(indices)
 	defer bgfx.DestroyIndexBuffer(ib)
-	prog, err := assets.LoadProgram("vs_instancing", "fs_instancing")
-	if err != nil {
-		log.Fatalln(err)
-	}
+	prog := assets.LoadProgram("vs_instancing", "fs_instancing")
 	defer bgfx.DestroyProgram(prog)
 
+	caps := bgfx.Caps()
 	for app.Continue() {
 		var (
 			eye = mgl32.Vec3{0, 0, -35.0}

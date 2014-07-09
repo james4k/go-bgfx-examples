@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/binary"
-	"log"
 	"math"
 
 	"github.com/go-gl/mathgl/mgl32"
@@ -112,20 +111,11 @@ func main() {
 	if instancingSupported {
 		vsbump = "vs_bump_instanced"
 	}
-	prog, err := assets.LoadProgram(vsbump, "fs_bump")
-	if err != nil {
-		log.Fatalln(err)
-	}
+	prog := assets.LoadProgram(vsbump, "fs_bump")
 	defer bgfx.DestroyProgram(prog)
 
-	textureColor, err := assets.LoadTexture("fieldstone-rgba.dds")
-	if err != nil {
-		log.Fatalln(err)
-	}
-	textureNormal, err := assets.LoadTexture("fieldstone-n.dds")
-	if err != nil {
-		log.Fatalln(err)
-	}
+	textureColor := assets.LoadTexture("fieldstone-rgba.dds", 0)
+	textureNormal := assets.LoadTexture("fieldstone-n.dds", 0)
 
 	for app.Continue() {
 		var (

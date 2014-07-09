@@ -33,19 +33,19 @@ func Open(name string) (f *os.File, err error) {
 	return
 }
 
-func LoadProgram(vsh, fsh string) (bgfx.Program, error) {
-	v, err := LoadShader(vsh)
+func LoadProgram(vsh, fsh string) bgfx.Program {
+	v, err := loadShader(vsh)
 	if err != nil {
-		return bgfx.Program{}, err
+		log.Fatalln(err)
 	}
-	f, err := LoadShader(fsh)
+	f, err := loadShader(fsh)
 	if err != nil {
-		return bgfx.Program{}, err
+		log.Fatalln(err)
 	}
-	return bgfx.CreateProgram(v, f, true), nil
+	return bgfx.CreateProgram(v, f, true)
 }
 
-func LoadShader(name string) (bgfx.Shader, error) {
+func loadShader(name string) (bgfx.Shader, error) {
 	f, err := Open(filepath.Join("shaders/glsl", name+".bin"))
 	if err != nil {
 		return bgfx.Shader{}, err
@@ -58,18 +58,18 @@ func LoadShader(name string) (bgfx.Shader, error) {
 	return bgfx.CreateShader(data), nil
 }
 
-func LoadTexture(name string) (bgfx.Texture, error) {
+func LoadTexture(name string, flags bgfx.TextureFlags) bgfx.Texture {
 	f, err := Open(filepath.Join("textures", name))
 	if err != nil {
-		return bgfx.Texture{}, err
+		log.Fatalln(err)
 	}
 	defer f.Close()
 	data, err := ioutil.ReadAll(f)
 	if err != nil {
-		return bgfx.Texture{}, err
+		log.Fatalln(err)
 	}
-	tex, _ := bgfx.CreateTexture(data, 0, 0)
-	return tex, nil
+	tex, _ := bgfx.CreateTexture(data, flags, 0)
+	return tex
 }
 
 type Bounds struct {

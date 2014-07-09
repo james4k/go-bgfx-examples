@@ -1,9 +1,6 @@
 package main
 
 import (
-	"log"
-	"runtime"
-
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
 	"github.com/james4k/go-bgfx-examples/assets"
@@ -80,10 +77,6 @@ func renderScreenSpaceQuad(view bgfx.ViewID, prog bgfx.Program, decl bgfx.Vertex
 	bgfx.Submit(view)
 }
 
-func init() {
-	runtime.LockOSThread()
-}
-
 func main() {
 	app := example.Open()
 	defer app.Close()
@@ -116,10 +109,7 @@ func main() {
 	defer bgfx.DestroyUniform(uMtx)
 	defer bgfx.DestroyUniform(uLightDir)
 
-	prog, err := assets.LoadProgram("vs_raymarching", "fs_raymarching")
-	if err != nil {
-		log.Fatalln(err)
-	}
+	prog := assets.LoadProgram("vs_raymarching", "fs_raymarching")
 	defer bgfx.DestroyProgram(prog)
 
 	for app.Continue() {

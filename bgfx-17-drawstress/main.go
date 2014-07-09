@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
 	"github.com/james4k/go-bgfx-examples/assets"
@@ -65,10 +63,7 @@ func main() {
 	defer bgfx.DestroyVertexBuffer(vb)
 	ib := bgfx.CreateIndexBuffer(indices)
 	defer bgfx.DestroyIndexBuffer(ib)
-	prog, err := assets.LoadProgram("vs_cubes", "fs_cubes")
-	if err != nil {
-		log.Fatalln(err)
-	}
+	prog := assets.LoadProgram("vs_cubes", "fs_cubes")
 	defer bgfx.DestroyProgram(prog)
 
 	var (
