@@ -1,14 +1,12 @@
 package assets
 
 import (
-	"encoding"
 	"encoding/binary"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
 
 	"github.com/james4k/go-bgfx"
 )
@@ -120,19 +118,17 @@ func LoadMesh(name string) Mesh {
 }
 
 func read(r io.Reader, dest interface{}) {
-	b, ok := dest.(encoding.BinaryUnmarshaler)
-	if ok {
-		size := reflect.TypeOf(dest).Elem().Size()
-		buf := make([]byte, int(size))
-		_, err := io.ReadFull(r, buf)
+	switch v := dest.(type) {
+	case *bgfx.VertexDecl:
+		readDecl(r, v)
+	case *bool:
+		var b uint8
+		err := binary.Read(r, binary.LittleEndian, &b)
 		if err != nil {
 			panic(err)
 		}
-		err = b.UnmarshalBinary(buf)
-		if err != nil {
-			panic(err)
-		}
-	} else {
+		*v = (b != 0)
+	default:
 		err := binary.Read(r, binary.LittleEndian, dest)
 		if err != nil {
 			panic(err)
@@ -140,9 +136,86 @@ func read(r io.Reader, dest interface{}) {
 	}
 }
 
+var attribIdTable = map[uint16]bgfx.Attrib{
+	0x01: bgfx.AttribPosition,
+	0x02: bgfx.AttribNormal,
+	0x03: bgfx.AttribTangent,
+	0x04: bgfx.AttribBitangent,
+	0x05: bgfx.AttribColor0,
+	0x06: bgfx.AttribColor1,
+	0x0e: bgfx.AttribIndices,
+	0x0f: bgfx.AttribWeight,
+	0x10: bgfx.AttribTexcoord0,
+	0x11: bgfx.AttribTexcoord1,
+	0x12: bgfx.AttribTexcoord2,
+	0x13: bgfx.AttribTexcoord3,
+	0x14: bgfx.AttribTexcoord4,
+	0x15: bgfx.AttribTexcoord5,
+	0x16: bgfx.AttribTexcoord6,
+	0x17: bgfx.AttribTexcoord7,
+}
+
+func idToAttrib(id uint16) (bgfx.Attrib, bool) {
+	a, ok := attribIdTable[id]
+	return a, ok
+}
+
+func idToAttribType(id uint16) (bgfx.AttribType, bool) {
+	switch id {
+	case 0x01:
+		return bgfx.AttribTypeUint8, true
+	case 0x02:
+		return bgfx.AttribTypeInt16, true
+	case 0x03:
+		return bgfx.AttribTypeHalf, true
+	case 0x04:
+		return bgfx.AttribTypeFloat, true
+	default:
+		return 0, false
+	}
+}
+
+func readDecl(r io.Reader, decl *bgfx.VertexDecl) {
+	var (
+		nattrs uint8
+		stride uint16
+	)
+	read(r, &nattrs)
+	read(r, &stride)
+	decl.Begin()
+	defer decl.End()
+	for i := uint8(0); i < nattrs; i++ {
+		var (
+			offset       uint16
+			attribID     uint16
+			num          uint8
+			attribTypeID uint16
+			normalized   bool
+			asInt        bool
+		)
+		read(r, &offset)
+		read(r, &attribID)
+		read(r, &num)
+		read(r, &attribTypeID)
+		read(r, &normalized)
+		read(r, &asInt)
+		attr, ok := idToAttrib(attribID)
+		if !ok {
+			continue
+		}
+		typ, ok := idToAttribType(attribTypeID)
+		if !ok {
+			continue
+		}
+		decl.Add(attr, num, typ, normalized, asInt)
+		// TODO: set offset.. with unsafe i guess?
+	}
+	// TODO: set stride.. with unsafe i guess?
+}
+
 func readMesh(r io.ReadSeeker) Mesh {
 	const (
-		ChunkMagicVB  = 0x00204256 // fourcc "VB \x00"
+		ChunkMagicVB  = 0x01204256 // fourcc "VB \x01"
 		ChunkMagicIB  = 0x00204249 // fourcc "IB \x00"
 		ChunkMagicPRI = 0x00495250 // fourcc "PRI\x00"
 	)
@@ -199,9 +272,11 @@ func readMesh(r io.ReadSeeker) Mesh {
 	}
 }
 
-func (m Mesh) Submit(view bgfx.ViewID, prog bgfx.Program, mtx [16]float32) {
-	state := bgfx.StateDefault | bgfx.StateCullCCW
-	state &= ^bgfx.StateCullCW
+func (m Mesh) Submit(view bgfx.ViewID, prog bgfx.Program, mtx [16]float32, state bgfx.State) {
+	if state == 0 {
+		state = bgfx.StateDefault | bgfx.StateCullCCW
+		state &= ^bgfx.StateCullCW
+	}
 	for _, g := range m.groups {
 		bgfx.SetTransform(mtx)
 		bgfx.SetProgram(prog)

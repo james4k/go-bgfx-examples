@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
 	"github.com/james4k/go-bgfx-examples/assets"
 	"github.com/james4k/go-bgfx-examples/example"
+	"j4k.co/cgm"
+	"j4k.co/cgm/mat4"
 )
 
 func main() {
@@ -43,20 +44,20 @@ func main() {
 		bgfx.SetUniform(uTime, &app.Time, 1)
 
 		var (
-			eye = mgl32.Vec3{0, 1, -2.5}
-			at  = mgl32.Vec3{0, 1, 0}
-			up  = mgl32.Vec3{0, 1, 0}
+			eye = [3]float32{0, 1, -2.5}
+			at  = [3]float32{0, 1, 0}
+			up  = [3]float32{0, 1, 0}
 		)
-		view := [16]float32(mgl32.LookAtV(eye, at, up))
-		proj := [16]float32(mgl32.Perspective(
-			mgl32.DegToRad(60.0),
+		view := mat4.LookAtLH(eye, at, up)
+		proj := mat4.PerspectiveLH(
+			cgm.Degrees(60).ToRadians(),
 			float32(app.Width)/float32(app.Height),
 			0.1, 100,
-		))
+		)
 		bgfx.SetViewTransform(0, view, proj)
 
-		mtx := mgl32.HomogRotate3DY(app.Time * 0.37)
-		mesh.Submit(0, prog, mtx)
+		mtx := mat4.RotateXYZ(0, cgm.Radians(app.Time)*0.37, 0)
+		mesh.Submit(0, prog, mtx, 0)
 
 		bgfx.Frame()
 	}

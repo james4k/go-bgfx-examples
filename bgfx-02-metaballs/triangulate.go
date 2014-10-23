@@ -389,6 +389,7 @@ func triangulate(result []PosNormalColorVertex, rgb, xyz []float32, val []*cell,
 		result[num].Normal[1] = vertex[4]
 		result[num].Normal[2] = vertex[5]
 		result[num].ABGR = 0xff000000 | bb | gg | rr
+		//result[num].ABGR = 0xffffffff
 		num++
 	}
 	return num

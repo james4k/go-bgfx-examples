@@ -4,10 +4,11 @@ import (
 	"encoding/binary"
 	"math"
 
-	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
 	"github.com/james4k/go-bgfx-examples/assets"
 	"github.com/james4k/go-bgfx-examples/example"
+	"j4k.co/cgm"
+	"j4k.co/cgm/mat4"
 )
 
 type PosColorVertex struct {
@@ -72,16 +73,16 @@ func main() {
 	caps := bgfx.Caps()
 	for app.Continue() {
 		var (
-			eye = mgl32.Vec3{0, 0, -35.0}
-			at  = mgl32.Vec3{0, 0, 0}
-			up  = mgl32.Vec3{1, 0, 0}
+			eye = [3]float32{0, 0, -35.0}
+			at  = [3]float32{0, 0, 0}
+			up  = [3]float32{1, 0, 0}
 		)
-		view := [16]float32(mgl32.LookAtV(eye, at, up))
-		proj := [16]float32(mgl32.Perspective(
-			mgl32.DegToRad(60),
+		view := mat4.LookAtLH(eye, at, up)
+		proj := mat4.PerspectiveLH(
+			cgm.Degrees(60).ToRadians(),
 			float32(app.Width)/float32(app.Height),
-			0.1, 100.0,
-		))
+			0.1, 100,
+		)
 		bgfx.SetViewTransform(0, view, proj)
 		bgfx.SetViewRect(0, 0, 0, app.Width, app.Height)
 		bgfx.DebugTextClear()
@@ -106,8 +107,11 @@ func main() {
 		time64 := float64(app.Time)
 		for y := 0; y < 11; y++ {
 			for x := 0; x < 11; x++ {
-				mtx := mgl32.HomogRotate3DX(app.Time + float32(x)*0.21)
-				mtx = mtx.Mul4(mgl32.HomogRotate3DY(app.Time + float32(y)*0.37))
+				mtx := mat4.RotateXYZ(
+					cgm.Radians(app.Time)+cgm.Radians(x)*0.21,
+					cgm.Radians(app.Time)+cgm.Radians(y)*0.37,
+					0,
+				)
 				mtx[12] = -15 + float32(x)*3
 				mtx[13] = -15 + float32(y)*3
 				mtx[14] = 0

@@ -3,9 +3,11 @@ package main
 import (
 	"math"
 
-	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
 	"github.com/james4k/go-bgfx-examples/example"
+	"j4k.co/cgm"
+	"j4k.co/cgm/mat4"
+	"j4k.co/cgm/vec3"
 )
 
 type PosNormalColorVertex struct {
@@ -49,16 +51,16 @@ func main() {
 
 	for app.Continue() {
 		var (
-			eye = mgl32.Vec3{0, 0, -50.0}
-			at  = mgl32.Vec3{0, 0, 0}
-			up  = mgl32.Vec3{0, 1, 0}
+			eye = [3]float32{0, 0, -50.0}
+			at  = [3]float32{0, 0, 0}
+			up  = [3]float32{0, 1, 0}
 		)
-		view := [16]float32(mgl32.LookAtV(eye, at, up))
-		proj := [16]float32(mgl32.Perspective(
-			mgl32.DegToRad(60.0),
+		view := mat4.LookAtLH(eye, at, up)
+		proj := mat4.PerspectiveLH(
+			cgm.Degrees(60).ToRadians(),
 			float32(app.Width)/float32(app.Height),
-			0.1, 100.0,
-		))
+			0.1, 100,
+		)
 		bgfx.SetViewTransform(0, view, proj)
 		bgfx.SetViewRect(0, 0, 0, app.Width, app.Height)
 		bgfx.Submit(0)
@@ -116,11 +118,11 @@ func main() {
 				offset := (z*dim + y) * dim
 				for x := 1; x < dim-1; x++ {
 					xoffset := offset + x
-					grid[xoffset].normal = mgl32.Vec3{
+					grid[xoffset].normal = vec3.Normal([3]float32{
 						grid[xoffset-1].val - grid[xoffset+1].val,
 						grid[xoffset-ypitch].val - grid[xoffset+ypitch].val,
 						grid[xoffset-zpitch].val - grid[xoffset+zpitch].val,
-					}.Normalize()
+					})
 				}
 			}
 		}
@@ -171,13 +173,15 @@ func main() {
 		bgfx.DebugTextPrintf(0, 7, 0x0f, " Triangulate: % 7.3f[ms]", profTriangulate*1000.0)
 		bgfx.DebugTextPrintf(0, 8, 0x0f, "       Frame: % 7.3f[ms]", app.DeltaTime*1000.0)
 
-		bgfx.DebugTextPrintf(0, 10, 0x1f, "BUG: looks like an error with the normals/colors")
-
-		mtx := mgl32.HomogRotate3DX(app.Time * 0.67)
-		mtx = mtx.Mul4(mgl32.HomogRotate3DY(app.Time))
-		bgfx.SetTransform([16]float32(mtx))
+		mtx := mat4.RotateXYZ(
+			cgm.Radians(app.Time)*0.67,
+			cgm.Radians(app.Time),
+			0,
+		)
+		bgfx.SetTransform(mtx)
 		bgfx.SetProgram(prog)
 		bgfx.SetTransientVertexBuffer(tvb, 0, numVertices)
+		bgfx.SetState(bgfx.StateDefault)
 		bgfx.Submit(0)
 
 		bgfx.Frame()

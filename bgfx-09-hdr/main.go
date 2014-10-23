@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
 	"github.com/james4k/go-bgfx-examples/assets"
 	"github.com/james4k/go-bgfx-examples/example"
+	"j4k.co/cgm"
+	"j4k.co/cgm/mat4"
 )
 
 type PosColorTexcoord0Vertex struct {
@@ -231,8 +232,11 @@ func main() {
 
 		bgfx.SetUniform(uTime, &app.Time, 1)
 
-		bgfx.SetViewRectMask(0x1f, 0, 0, app.Width, app.Height)
-		bgfx.SetViewFrameBufferMask(0x3, fb)
+		for i := 0; i < 6; i++ {
+			bgfx.SetViewRect(bgfx.ViewID(i), 0, 0, app.Width, app.Height)
+		}
+		bgfx.SetViewFrameBuffer(0, fb)
+		bgfx.SetViewFrameBuffer(1, fb)
 
 		bgfx.SetViewRect(2, 0, 0, 128, 128)
 		bgfx.SetViewFrameBuffer(2, lum[0])
@@ -253,28 +257,26 @@ func main() {
 
 		bgfx.SetViewRect(9, 0, 0, app.Width, app.Height)
 
-		mask := bgfx.ViewMask(1)
-		for i := uint(2); i <= 9; i++ {
-			mask |= (1 << i)
+		view := mat4.Identity()
+		proj := mat4.OrthoLH(0, 1, 1, 0, 0, 100)
+		for i := 0; i < 10; i++ {
+			bgfx.SetViewTransform(bgfx.ViewID(i), view, proj)
 		}
-		view := mgl32.Ident4()
-		proj := mgl32.Ortho(0, 1, 1, 0, 0, 100)
-		bgfx.SetViewTransformMask(mask, [16]float32(view), [16]float32(proj))
 
 		var (
-			eye = mgl32.Vec3{0, 1, -2.5}
-			at  = mgl32.Vec3{0, 1, 0}
-			up  = mgl32.Vec3{0, 1, 0}
-			mtx = mgl32.HomogRotate3DY(app.Time * 0.37)
+			eye = [3]float32{0, 1, -2.5}
+			at  = [3]float32{0, 1, 0}
+			up  = [3]float32{0, 1, 0}
+			mtx = mat4.RotateXYZ(0, cgm.Radians(app.Time)*0.37, 0)
 		)
-		eye = mtx.Mul4x1(eye.Vec4(0)).Vec3()
-		view = mgl32.LookAtV(eye, at, up)
-		proj = mgl32.Perspective(
-			mgl32.DegToRad(60.0),
+		eye = mat4.Mul3(mtx, eye)
+		view = mat4.LookAtLH(eye, at, up)
+		proj = mat4.PerspectiveLH(
+			cgm.Degrees(60.0).ToRadians(),
 			float32(app.Width)/float32(app.Height),
 			0.1, 100,
 		)
-		bgfx.SetViewTransform(1, [16]float32(view), [16]float32(proj))
+		bgfx.SetViewTransform(1, view, proj)
 		bgfx.SetUniform(uMtx, &mtx, 1)
 
 		// Render skybox into view 0
@@ -286,7 +288,7 @@ func main() {
 
 		// Render mesh into view 1
 		bgfx.SetTexture(0, uTexCube, uffizi)
-		mesh.Submit(1, meshProg, [16]float32(mgl32.Ident4()))
+		mesh.Submit(1, meshProg, mat4.Identity(), 0)
 
 		// Calculate luminance.
 		setOffsets2x2Lum(uOffset, 128, 128)

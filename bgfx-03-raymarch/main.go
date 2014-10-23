@@ -1,10 +1,12 @@
 package main
 
 import (
-	"github.com/go-gl/mathgl/mgl32"
 	"github.com/james4k/go-bgfx"
 	"github.com/james4k/go-bgfx-examples/assets"
 	"github.com/james4k/go-bgfx-examples/example"
+	"j4k.co/cgm"
+	"j4k.co/cgm/mat4"
+	"j4k.co/cgm/vec3"
 )
 
 type PosColorTexcoord0Vertex struct {
@@ -119,13 +121,13 @@ func main() {
 		bgfx.DebugTextPrintf(0, 3, 0x0f, "Frame: % 7.3f[ms]", app.DeltaTime*1000.0)
 
 		var (
-			eye = mgl32.Vec3{0, 0, -15.0}
-			at  = mgl32.Vec3{0, 0, 0}
-			up  = mgl32.Vec3{1, 0, 0}
+			eye = [3]float32{0, 0, -15.0}
+			at  = [3]float32{0, 0, 0}
+			up  = [3]float32{1, 0, 0}
 		)
-		view := mgl32.LookAtV(eye, at, up)
-		proj := mgl32.Perspective(
-			mgl32.DegToRad(60.0),
+		view := mat4.LookAtLH(eye, at, up)
+		proj := mat4.PerspectiveLH(
+			cgm.Degrees(60.0).ToRadians(),
 			float32(app.Width)/float32(app.Height),
 			0.1, 100.0,
 		)
@@ -133,17 +135,27 @@ func main() {
 		bgfx.SetViewTransform(0, [16]float32(view), [16]float32(proj))
 		bgfx.Submit(0)
 
-		ortho := mgl32.Ortho(0, float32(app.Width), float32(app.Height), 0, 0, 100)
+		ortho := mat4.OrthoLH(0, float32(app.Width), float32(app.Height), 0, 0, 100)
 		bgfx.SetViewRect(1, 0, 0, app.Width, app.Height)
-		bgfx.SetViewTransform(1, [16]float32(mgl32.Ident4()), [16]float32(ortho))
+		bgfx.SetViewTransform(1, mat4.Identity(), ortho)
 
-		viewProj := proj.Mul4(view)
-		mtx := mgl32.HomogRotate3DX(app.Time).Mul4(mgl32.HomogRotate3DY(app.Time * 0.37))
-		invMtx := mtx.Inv()
-		lightDirModel := mgl32.Vec3{-0.4, -0.5, -1.0}
-		lightDirModelN := lightDirModel.Normalize()
-		lightDir := invMtx.Mul4x1(lightDirModelN.Vec4(0))
-		invMvp := viewProj.Mul4(mtx).Inv()
+		viewProj := mat4.Mul(proj, view)
+		mtx := mat4.RotateXYZ(
+			cgm.Radians(app.Time),
+			cgm.Radians(app.Time)*0.37,
+			0,
+		)
+		invMtx := mat4.Inv(mtx)
+		lightDirModel := [3]float32{-0.4, -0.5, -1.0}
+		lightDirModelN := vec3.Normal(lightDirModel)
+		lightDir := mat4.Mul4(invMtx,
+			[4]float32{
+				lightDirModelN[0],
+				lightDirModelN[1],
+				lightDirModelN[2],
+				0,
+			})
+		invMvp := mat4.Inv(mat4.Mul(viewProj, mtx))
 
 		bgfx.SetUniform(uTime, &app.Time, 1)
 		bgfx.SetUniform(uLightDir, &lightDir, 1)
