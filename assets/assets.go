@@ -2,6 +2,7 @@ package assets
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -208,9 +209,12 @@ func readDecl(r io.Reader, decl *bgfx.VertexDecl) {
 			continue
 		}
 		decl.Add(attr, num, typ, normalized, asInt)
-		// TODO: set offset.. with unsafe i guess?
+		decl.SetOffset(attr, uint(offset))
 	}
-	// TODO: set stride.. with unsafe i guess?
+	if decl.Stride() != int(stride) {
+		panic(fmt.Errorf("readDecl: decl.stride %d != expected stride %d",
+			decl.Stride(), stride))
+	}
 }
 
 func readMesh(r io.ReadSeeker) Mesh {
