@@ -126,7 +126,7 @@ func main() {
 		)
 		view := mat4.LookAtLH(eye, at, up)
 		proj := mat4.PerspectiveLH(
-			cgm.Degrees(60).ToRadians(),
+			cgm.ToRadians(60),
 			float32(app.Width)/float32(app.Height),
 			0.1, 100.0,
 		)
